@@ -12,6 +12,7 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+// 當 App 在背景時收到通知的處理
 messaging.onBackgroundMessage((payload) => {
     self.registration.showNotification(payload.notification.title, {
         body: payload.notification.body,
