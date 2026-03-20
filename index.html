@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>煙卷記帳本</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        :root { --primary: #6a5acd; --bg: #f4f4f9; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding-bottom: 70px; }
+        
+        /* 玻璃蓋密碼鎖 */
+        #glass-cover {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px);
+            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999;
+        }
+
+        /* 底部導覽欄 */
+        .nav-bar {
+            position: fixed; bottom: 0; width: 100%; background: white;
+            display: flex; border-top: 1px solid #ddd; height: 60px;
+        }
+        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; }
+        .active { color: var(--primary); font-weight: bold; }
+
+        /* 分頁內容 */
+        .page { display: none; padding: 20px; }
+        .page.active-page { display: block; }
+        .card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+
+    <div id="glass-cover">
+        <h2 style="color: var(--primary);">煙卷記帳系統</h2>
+        <p>請輸入密碼以解鎖</p>
+        <input type="password" id="pass-input" style="padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+        <button onclick="checkPassword()" style="margin-top: 10px; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 5px;">解鎖</button>
+    </div>
+
+    <div id="main-content">
+        <div id="page1" class="page active-page"><h2>🔔 到帳通知</h2><div id="list-notifications"></div></div>
+        <div id="page2" class="page"><h2>📑 匯款明細</h2><div id="list-all"></div></div>
+        <div id="page3" class="page"><h2>📈 統計</h2><div id="chart-area">載入中...</div></div>
+        <div id="page4" class="page"><h2>⚙️ 設置</h2><p>FCM Token: <span id="token-display">未取得</span></p></div>
+    </div>
+
+    <div class="nav-bar">
+        <div class="nav-item active" onclick="showPage(1)"><span>🔔</span><span>到帳</span></div>
+        <div class="nav-item" onclick="showPage(2)"><span>📑</span><span>明細</span></div>
+        <div class="nav-item" onclick="showPage(3)"><span>📈</span><span>統計</span></div>
+        <div class="nav-item" onclick="showPage(4)"><span>⚙️</span><span>設置</span></div>
+    </div>
+
+    <script>
+        const GAS_URL = "你的_GAS_部署網址";
+        let correctPassword = "";
+
+        // 檢查密碼
+        async function init() {
+            const res = await fetch(GAS_URL);
+            const json = await res.json();
+            correctPassword = json.auth;
+            // 如果本地存過密碼，自動解鎖
+            if(localStorage.getItem('myPass') === correctPassword) {
+                document.getElementById('glass-cover').style.display = 'none';
+            }
+        }
+
+        function checkPassword() {
+            const input = document.getElementById('pass-input').value;
+            if(input === correctPassword) {
+                localStorage.setItem('myPass', input);
+                document.getElementById('glass-cover').style.display = 'none';
+            } else {
+                alert('密碼錯誤！');
+            }
+        }
+
+        function showPage(num) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById('page' + num).classList.add('active-page');
+            document.querySelectorAll('.nav-item')[num-1].classList.add('active');
+        }
+
+        init();
+    </script>
+</body>
+</html>
