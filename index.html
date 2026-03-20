@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>記帳管理系統</title>
+    <title>煙卷記帳系統</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#6a5acd">
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -11,7 +11,7 @@
     <style>
         :root { --primary: #6a5acd; --bg: #f4f4f9; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding-bottom: 80px; }
-        #glass-cover { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.4); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+        #glass-cover { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.5); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: flex; align-items: center; justify-content: center; z-index: 9999; }
         .login-card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; width: 280px; }
         .login-card input { width: 100%; padding: 12px; margin: 15px 0; border: 1px solid #ddd; border-radius: 10px; font-size: 18px; text-align: center; }
         .login-card button { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 10px; width: 100%; font-size: 16px; }
@@ -22,101 +22,103 @@
         .nav-bar { position: fixed; bottom: 0; width: 100%; height: 65px; background: white; display: flex; border-top: 1px solid #eee; }
         .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; color: #888; cursor: pointer; }
         .nav-item.active { color: var(--primary); font-weight: bold; }
+        .amount-in { color: #28a745; font-weight: bold; }
     </style>
 </head>
 <body>
-
     <div id="glass-cover">
         <div class="login-card">
-            <h2 id="login-title">系統加載中...</h2>
+            <h2 id="status">系統啟動中...</h2>
             <div id="login-form" style="display:none;">
-                <p>請輸入管理密碼</p>
-                <input type="password" id="password-input" placeholder="••••" inputmode="numeric">
-                <button onclick="verifyPassword()">解鎖進入</button>
+                <p>請輸入密碼解鎖</p>
+                <input type="password" id="pass-in" placeholder="••••" inputmode="numeric">
+                <button onclick="unlock()">解鎖</button>
             </div>
         </div>
     </div>
 
     <div class="container">
-        <div id="tab1" class="page active"><h2>🔔 到帳通知</h2><div id="arrival-list"></div></div>
-        <div id="tab2" class="page"><h2>📑 匯款明細</h2><div id="detail-list"></div></div>
-        <div id="tab3" class="page"><h2>📈 統計</h2><div class="card"><h1 id="stat-profit">$0</h1></div></div>
-        <div id="tab4" class="page"><h2>⚙️ 設置</h2><div class="card"><button onclick="requestPush()" style="width:100%;padding:10px;background:var(--primary);color:white;border:none;border-radius:8px;">開啟手機推播</button></div></div>
+        <div id="tab1" class="page active"><h2>🔔 最近到帳</h2><div id="list1"></div></div>
+        <div id="tab2" class="page"><h2>📑 歷史明細</h2><div id="list2"></div></div>
+        <div id="tab3" class="page"><h2>📈 統計</h2><div class="card"><h3>本月盈虧</h3><h1 id="profit">$0</h1></div></div>
+        <div id="tab4" class="page"><h2>⚙️ 設置</h2>
+            <div class="card"><button onclick="startPush()" style="width:100%;padding:10px;background:var(--primary);color:white;border:none;border-radius:8px;">啟動手機推播</button></div>
+            <div class="card" style="text-align: center;"><button onclick="logout()" style="color:red;background:none;border:none;">登出系統</button></div>
+        </div>
     </div>
 
     <div class="nav-bar">
-        <div class="nav-item active" onclick="switchTab(1)"><span>🔔</span><span>到帳</span></div>
-        <div class="nav-item" onclick="switchTab(2)"><span>📑</span><span>明細</span></div>
-        <div class="nav-item" onclick="switchTab(3)"><span>📈</span><span>統計</span></div>
-        <div class="nav-item" onclick="switchTab(4)"><span>⚙️</span><span>設置</span></div>
+        <div class="nav-item active" onclick="show(1)"><span>🔔</span><span>到帳</span></div>
+        <div class="nav-item" onclick="show(2)"><span>📑</span><span>明細</span></div>
+        <div class="nav-item" onclick="show(3)"><span>📈</span><span>統計</span></div>
+        <div class="nav-item" onclick="show(4)"><span>⚙️</span><span>設置</span></div>
     </div>
 
     <script>
         const CONFIG = {
-            gasUrl: "https://script.google.com/macros/s/AKfycbwbRo0oaGnFr0DzWcVe0kMUSiCsdGWgtANAUeswtLiblD9oO1jN-DLbwOKVZAH3Mq6c/exec", 
+            gasUrl: "https://script.google.com/macros/s/AKfycbwjS1J5EbtyN1JIse5-hoEc61Y5E3lTHV1JxkAWevNE-PsXMap9PvA4488Xj_y5BOAE/exec", // 👈 這裡貼上你 B3 的網址
             firebase: {
-                apiKey: "AIzaSyD2_eAUXKq4N_6bHxwkZ5cKoZv3RCVSY",
+                apiKey: "AIzaSyD2_eAUXKq4N_6bHxwkZ5cKoZv3RCVSY-c",
                 authDomain: "yanjuan-accounting.firebaseapp.com",
                 projectId: "yanjuan-accounting",
                 storageBucket: "yanjuan-accounting.firebasestorage.app",
                 messagingSenderId: "757038841020",
                 appId: "1:757038841020:web:d66733ee8ddfedb8e9a4b9"
             },
-            vapidKey: "BBik7IDFeqp3tcrsWcMlCGrBQ5MX-iYkgSltTOLD9kMSCQb5GQ5if7duoTAIInD4JSQyK8OZZox3LCio115ro4A"
+            vapidKey: "請填入你的_VAPID_Key" // 👈 這裡貼上 Firebase「Web 推播憑證」那一串
         };
 
-        let allData = [];
-        let correctPassword = "";
+        let data = [], auth = "";
 
         async function init() {
             try {
-                const response = await fetch(CONFIG.gasUrl);
-                const result = await response.json();
-                allData = result.data;
-                correctPassword = String(result.auth).trim();
-                document.getElementById('login-title').innerText = "煙卷記帳系統";
+                const res = await fetch(CONFIG.gasUrl);
+                const json = await res.json();
+                data = json.data; auth = String(json.auth).trim();
+                document.getElementById('status').innerText = "煙卷記帳系統";
                 document.getElementById('login-form').style.display = "block";
-                if (localStorage.getItem('isLogged') === correctPassword) {
-                    document.getElementById('glass-cover').style.display = 'none';
-                    renderData();
+                if(localStorage.getItem('lg') === auth) {
+                    document.getElementById('glass-cover').style.display='none';
+                    render();
                 }
-            } catch (e) { alert("連線失敗！請檢查 GAS 網址與權限。"); }
+            } catch(e) { alert("連線失敗！"); }
         }
 
-        function verifyPassword() {
-            const input = document.getElementById('password-input').value.trim();
-            if (input === correctPassword) {
-                localStorage.setItem('isLogged', correctPassword);
-                document.getElementById('glass-cover').style.display = 'none';
-                renderData();
-            } else { alert("密碼錯誤！\n正確值是：[" + correctPassword + "]"); }
+        function unlock() {
+            const input = document.getElementById('pass-in').value.trim();
+            if(input === auth) {
+                localStorage.setItem('lg', auth);
+                document.getElementById('glass-cover').style.display='none';
+                render();
+            } else { alert("密碼錯誤！\n正確值是：[" + auth + "]"); }
         }
 
-        function renderData() {
-            document.getElementById('arrival-list').innerHTML = allData.filter(d => d.金額 > 0).slice(0, 10).map(d => `<div class="card">${d.項目}: $${d.金額}</div>`).join('');
-            document.getElementById('detail-list').innerHTML = allData.map(d => `<div class="card">${d.項目}: $${d.金額}</div>`).join('');
-            document.getElementById('stat-profit').innerText = "$" + allData.reduce((acc, cur) => acc + Number(cur.金額 || 0), 0).toLocaleString();
+        function render() {
+            document.getElementById('list1').innerHTML = data.filter(d => Number(d.金額) > 0).slice(0, 10).map(d => `<div class="card"><div style="display:flex;justify-content:space-between;"><span>${d.項目}</span><span class="amount-in">+$${d.金額}</span></div></div>`).join('');
+            document.getElementById('list2').innerHTML = data.map(d => `<div class="card"><div style="display:flex;justify-content:space-between;"><strong>${d.項目}</strong><span>$${d.金額}</span></div></div>`).join('');
+            document.getElementById('profit').innerText = "$" + data.reduce((a,c)=>a+Number(c.金額||0),0).toLocaleString();
         }
 
-        function switchTab(idx) {
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            document.getElementById('tab' + idx).classList.add('active');
-            document.querySelectorAll('.nav-item')[idx - 1].classList.add('active');
+        function show(i) {
+            document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+            document.getElementById('tab'+i).classList.add('active');
+            document.querySelectorAll('.nav-item')[i-1].classList.add('active');
         }
 
-        function requestPush() {
+        function startPush() {
             if (!firebase.apps.length) firebase.initializeApp(CONFIG.firebase);
             const messaging = firebase.messaging();
-            Notification.requestPermission().then((perm) => {
-                if (perm === 'granted') {
-                    messaging.getToken({ vapidKey: CONFIG.vapidKey }).then((token) => {
-                        console.log("Token:", token);
-                        alert("推播已啟動！");
+            Notification.requestPermission().then(p => {
+                if(p==='granted') {
+                    messaging.getToken({vapidKey: CONFIG.vapidKey}).then(t => {
+                        fetch(CONFIG.gasUrl, { method: "POST", body: JSON.stringify({ type: "register_token", token: t }) })
+                        .then(() => { alert("推播成功啟動！"); });
                     });
                 }
             });
         }
+        function logout() { localStorage.removeItem('lg'); location.reload(); }
         window.onload = init;
     </script>
 </body>
