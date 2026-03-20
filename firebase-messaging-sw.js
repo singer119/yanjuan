@@ -2,21 +2,19 @@ importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
 firebase.initializeApp({
-    apiKey: "你的_API_KEY",
-    authDomain: "你的_PROJECT.firebaseapp.com",
-    projectId: "你的_PROJECT_ID",
-    storageBucket: "你的_PROJECT.appspot.com",
-    messagingSenderId: "你的_SENDER_ID",
-    appId: "你的_APP_ID"
+    apiKey: "AIzaSyD2_eAUXKq4N_6bHxwkZ5cKoZv3RCVSY-c",
+    authDomain: "yanjuan-accounting.firebaseapp.com",
+    projectId: "yanjuan-accounting",
+    storageBucket: "yanjuan-accounting.firebasestorage.app",
+    messagingSenderId: "757038841020",
+    appId: "1:757038841020:web:d66733ee8ddfedb8e9a4b9"
 });
 
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-    const title = payload.notification.title;
-    const options = {
+    self.registration.showNotification(payload.notification.title, {
         body: payload.notification.body,
         icon: '/icon.png'
-    };
-    self.registration.showNotification(title, options);
+    });
 });
