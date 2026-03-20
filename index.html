@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>記帳管理系統</title>
+    <title>煙卷記帳 APP</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#6a5acd">
+    
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
+
     <style>
         :root { --primary: #6a5acd; --bg: #f4f4f9; --text: #333; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 80px; }
@@ -19,16 +21,20 @@
             display: flex; align-items: center; justify-content: center; z-index: 9999;
         }
         .login-card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; width: 280px; }
-        .login-card input { width: 100%; padding: 12px; margin: 15px 0; border: 1px solid #ddd; border-radius: 10px; font-size: 18px; box-sizing: border-box; text-align: center; }
-        .login-card button { background: var(--primary); color: white; border: none; padding: 12px 30px; border-radius: 10px; width: 100%; font-size: 16px; }
+        .login-card input { width: 100%; padding: 12px; margin: 15px 0; border: 1px solid #ddd; border-radius: 10px; font-size: 18px; text-align: center; }
+        .login-card button { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 10px; width: 100%; font-size: 16px; }
 
-        .container { padding: 20px; }
+        .container { padding: 15px; }
         .page { display: none; }
-        .page.active { display: block; }
-        .card { background: white; padding: 15px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-        .nav-bar { position: fixed; bottom: 0; width: 100%; height: 65px; background: white; display: flex; border-top: 1px solid #eee; }
-        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; color: #888; cursor: pointer; }
+        .page.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .card { background: white; padding: 15px; border-radius: 15px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .nav-bar { position: fixed; bottom: 0; width: 100%; height: 65px; background: white; display: flex; border-top: 1px solid #eee; z-index: 1000; }
+        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 11px; color: #888; }
         .nav-item.active { color: var(--primary); font-weight: bold; }
+        .nav-item i { font-size: 20px; margin-bottom: 2px; }
+
         .amount-in { color: #28a745; font-weight: bold; }
         .amount-out { color: #dc3545; font-weight: bold; }
     </style>
@@ -37,46 +43,45 @@
 
     <div id="glass-cover">
         <div class="login-card">
-            <h2>系統鎖定</h2>
-            <p>請輸入管理密碼</p>
-            <input type="password" id="password-input" placeholder="••••" inputmode="numeric">
-            <button onclick="verifyPassword()">解鎖進入</button>
+            <h2 id="status-text">載入系統中...</h2>
+            <div id="login-form" style="display:none;">
+                <p>請輸入密碼解鎖</p>
+                <input type="password" id="password-input" placeholder="••••" inputmode="numeric">
+                <button onclick="verifyPassword()">解鎖</button>
+            </div>
         </div>
     </div>
 
     <div class="container">
         <div id="tab1" class="page active">
-            <h2>🔔 到帳通知</h2>
-            <div id="arrival-list">載入中...</div>
+            <h2>🔔 最近到帳</h2>
+            <div id="arrival-list"></div>
         </div>
         <div id="tab2" class="page">
-            <h2>📑 匯款明細</h2>
-            <input type="text" id="search-input" placeholder="搜尋..." onkeyup="filterData()" style="width:100%; padding:10px; margin-bottom:15px; border-radius:10px; border:1px solid #ddd;">
-            <div id="detail-list">載入中...</div>
+            <h2>📑 歷史明細</h2>
+            <input type="text" placeholder="搜尋項目..." onkeyup="filterData(this.value)" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd; margin-bottom:10px;">
+            <div id="detail-list"></div>
         </div>
         <div id="tab3" class="page">
             <h2>📈 數據統計</h2>
-            <div class="card" style="text-align: center;"><h3>本月淨利</h3><h1 id="stat-profit">$0</h1></div>
+            <div class="card" style="text-align: center;"><h3>本月盈虧</h3><h1 id="stat-profit">$0</h1></div>
         </div>
         <div id="tab4" class="page">
-            <h2>⚙️ 設置中心</h2>
-            <div class="card">
-                <button onclick="requestNotificationPermission()" style="width:100%; padding:10px; background:var(--primary); color:white; border:none; border-radius:8px;">開啟推播通知</button>
-            </div>
-            <div class="card" style="text-align:center;">
-                <button onclick="logout()" style="color:red; background:none; border:none;">登出系統</button>
-            </div>
+            <h2>⚙️ 設置</h2>
+            <div class="card"><button onclick="requestPush()" style="width:100%; padding:10px; background:var(--primary); color:white; border:none; border-radius:8px;">啟動手機推播</button></div>
+            <div class="card" style="text-align: center;"><button onclick="logout()" style="color:red; background:none; border:none;">登出系統</button></div>
         </div>
     </div>
 
     <div class="nav-bar">
-        <div class="nav-item active" onclick="switchTab(1)"><span>🔔</span><span>到帳</span></div>
-        <div class="nav-item" onclick="switchTab(2)"><span>📑</span><span>明細</span></div>
-        <div class="nav-item" onclick="switchTab(3)"><span>📈</span><span>統計</span></div>
-        <div class="nav-item" onclick="switchTab(4)"><span>⚙️</span><span>設置</span></div>
+        <div class="nav-item active" onclick="switchTab(1)"><i>🔔</i><span>到帳</span></div>
+        <div class="nav-item" onclick="switchTab(2)"><i>📑</i><span>明細</span></div>
+        <div class="nav-item" onclick="switchTab(3)"><i>📈</i><span>統計</span></div>
+        <div class="nav-item" onclick="switchTab(4)"><i>⚙️</i><span>設置</span></div>
     </div>
 
     <script>
+        // === 請根據你的資訊修改此區塊 ===
         const CONFIG = {
             gasUrl: "你的_GAS_部署網址", 
             firebase: {
@@ -93,36 +98,51 @@
         let allData = [];
         let correctPassword = "";
 
+        // 初始化
         async function init() {
             try {
                 const response = await fetch(CONFIG.gasUrl);
                 const result = await response.json();
+                
+                if (result.status === "error") throw new Error(result.message);
+
                 allData = result.data;
                 correctPassword = String(result.auth).trim();
                 
+                document.getElementById('status-text').innerText = "煙卷記帳系統";
+                document.getElementById('login-form').style.display = "block";
+
+                // 自動登入
                 if (localStorage.getItem('isLogged') === correctPassword) {
                     document.getElementById('glass-cover').style.display = 'none';
                     renderData();
                 }
-            } catch (e) { console.error("初始化失敗", e); }
+            } catch (e) {
+                document.getElementById('status-text').innerText = "連線失敗";
+                alert("錯誤: " + e.message);
+            }
         }
 
+        // 密碼驗證 (含偵錯提示)
         function verifyPassword() {
             const input = document.getElementById('password-input').value.trim();
             if (input === correctPassword) {
                 localStorage.setItem('isLogged', correctPassword);
                 document.getElementById('glass-cover').style.display = 'none';
                 renderData();
-            } else { alert("密碼錯誤！"); }
+            } else {
+                alert("密碼錯誤！\n輸入值: [" + input + "]\n正確值: [" + correctPassword + "]\n註：若括號內正確值為 undefined 代表 GAS 抓取失敗。");
+            }
         }
 
         function renderData() {
-            document.getElementById('arrival-list').innerHTML = allData.filter(d => d.金額 > 0).slice(0, 10).map(d => `
-                <div class="card"><div>${d.項目}</div><div class="amount-in">+$${d.金額}</div></div>
+            const incomeData = allData.filter(d => Number(d.金額) > 0).slice(0, 10);
+            document.getElementById('arrival-list').innerHTML = incomeData.map(d => `
+                <div class="card"><div style="display:flex;justify-content:space-between;"><span>${d.項目}</span><span class="amount-in">+$${d.金額}</span></div></div>
             `).join('');
-            
+
             document.getElementById('detail-list').innerHTML = allData.map(d => `
-                <div class="card"><div style="display:flex;justify-content:space-between;"><strong>${d.項目}</strong><span class="${d.金額 > 0 ? 'amount-in' : 'amount-out'}">${d.金額 > 0 ? '+' : ''}$${d.金額}</span></div></div>
+                <div class="card"><div style="display:flex;justify-content:space-between;"><strong>${d.項目}</strong><span class="${Number(d.金額) > 0 ? 'amount-in' : 'amount-out'}">${Number(d.金額) > 0 ? '+' : ''}$${d.金額}</span></div></div>
             `).join('');
 
             const profit = allData.reduce((acc, cur) => acc + Number(cur.金額 || 0), 0);
@@ -136,16 +156,22 @@
             document.querySelectorAll('.nav-item')[idx - 1].classList.add('active');
         }
 
+        function filterData(query) {
+            const q = query.toLowerCase();
+            const cards = document.querySelectorAll('#detail-list .card');
+            cards.forEach(c => c.style.display = c.innerText.toLowerCase().includes(q) ? 'block' : 'none');
+        }
+
         function logout() { localStorage.removeItem('isLogged'); location.reload(); }
 
-        function requestNotificationPermission() {
-            firebase.initializeApp(CONFIG.firebase);
+        function requestPush() {
+            if (!firebase.apps.length) firebase.initializeApp(CONFIG.firebase);
             const messaging = firebase.messaging();
             Notification.requestPermission().then((perm) => {
                 if (perm === 'granted') {
-                    messaging.getToken({ vapidKey: CONFIG.vapidKey }).then((token) => {
-                        console.log("Token:", token);
-                        alert("推播已啟動！");
+                    messaging.getToken({ vapidKey: CONFIG.vapidKey }).then(t => {
+                        console.log("Token:", t);
+                        alert("推播啟動成功！");
                     });
                 }
             });
